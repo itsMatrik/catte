@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brush Jjaemu Clone</title>
+    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" rel="stylesheet">
+    <style>
+        
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000; 
+            overflow: hidden;
+            cursor: none; 
+            font-family: 'Arial Black', sans-serif;
+            user-select: none; 
+            -webkit-user-select: none;
+            -webkit-user-drag: none; 
+            touch-action: none; 
+        }
+
+        #cat-image {
+            max-height: 80vh;
+            max-width: 90vw;
+            object-fit: contain;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none; 
+            animation: breatheAnim 5s ease-in-out infinite;
+        }
+
+        @keyframes breatheAnim {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -51%) scale(1.01, 1.03); }
+        }
+
+        #comb {
+            position: absolute;
+            width: 80px; 
+            pointer-events: none;
+            z-index: 100;
+            transform-origin: 50% 90%; 
+            will-change: transform, left, top;
+        }
+
+        #score-container {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 4rem;
+            z-index: 10;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 25px;
+            background-color: #9c846e; 
+            border-radius: 40%;
+            pointer-events: none;
+            z-index: 90;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.5); 
+            transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.6s linear;
+        }
+
+        #jumpscare-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: #110000;
+            z-index: 1000;
+            display: none; 
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #jumpscare-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transform: scale(0.1);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #jumpscare-img.scare-active {
+            animation: screamAnim 0.2s cubic-bezier(0.2, 0, 0, 1) forwards;
+        }
+
+        @keyframes screamAnim {
+            0% { transform: scale(0.1) translateY(200px); opacity: 0; filter: brightness(0.5); }
+            50% { transform: scale(1.05); opacity: 1; filter: brightness(2) contrast(1.5); }
+            100% { transform: scale(0.95); opacity: 1; filter: brightness(1) contrast(1.2); }
+        }
+
+        .blood-vignette {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 40%, rgba(200, 0, 0, 0.9) 100%);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1001;
+        }
+        .scare-active ~ .blood-vignette {
+            animation: bloodAnim 0.5s forwards;
+        }
+        @keyframes bloodAnim {
+            to { opacity: 1; }
+        }
+
+        #game-over-text {
+            display: none;
+            position: absolute;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 8rem;
+            color: #ff2a2a;
+            font-family: 'Permanent Marker', cursive;
+            text-align: center;
+            text-shadow: 0 0 20px #000, 3px 3px 0 #4a0000;
+            z-index: 1002;
+            width: 100%;
+            pointer-events: none;
+        }
+
+        body.game-over {
+            cursor: default;
+        }
+
+        @media (max-width: 768px) {
+            #cat-image {
+
+                max-width: 110vw; 
+                max-height: 100vh; 
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="score-container">0</div>
+
+<img id="cat-image" src="spokoyno.png" alt="Cat" draggable="false">
+<img id="comb" src="photo_2026-04-17_20-16-46.png" alt="Comb" draggable="false">
+
+<div id="jumpscare-overlay">
+    <img id="jumpscare-img" src="scrimac.png" alt="Scare">
+    <div class="blood-vignette"></div>
+    <div id="game-over-text">YOU DIED</div>
+</div>
+
+<script>
+    
+    let score = 0;
+    let isMouseDown = false;
+    let isMoving = false;
+    let isBrushing = false;
+    let isLookingBack = false;
+    let gameOver = false;
+    let canRestart = false;
+    let isTouchMode = false;
+    let moveTimeout;
+    let graceEndTime = 0;
+
+    let mouseX = window.innerWidth / 2;
+    let mouseY = window.innerHeight / 2;
+
+    const catImage = document.getElementById('cat-image');
+    const comb = document.getElementById('comb');
+    const scoreDisplay = document.getElementById('score-container');
+    const jumpscareOverlay = document.getElementById('jumpscare-overlay');
+    const jumpscareImg = document.getElementById('jumpscare-img');
+    const gameOverText = document.getElementById('game-over-text');
+
+    const brushSound = new Audio('cloth-grab-fabric-equipment-cloth-equip-grab-alegemaate.mp3');
+    brushSound.loop = true; 
+
+    const turnSound = new Audio('vine-boom-sound-effect-full.mp3');
+    const scareSound = new Audio('five-nights-at-freddys-3-springtraps-jumpscare-brightened.mp3');
+
+    function handleMove(x, y) {
+        mouseX = x;
+        mouseY = y;
+        if (isMouseDown) {
+            isMoving = true;
+            clearTimeout(moveTimeout);
+            moveTimeout = setTimeout(() => isMoving = false, 100);
+        }
+    }
+
+    document.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
+    document.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 0) {
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+    }, { passive: false });
+
+    function handleStart() {
+        if (gameOver) {
+            if (canRestart) location.reload();
+            return;
+        }
+        isMouseDown = true;
+    }
+
+    document.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        handleStart();
+    });
+    document.addEventListener('touchstart', (e) => {
+        isTouchMode = true; 
+        if (e.touches.length > 0) {
+            handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        }
+        handleStart();
+    }, { passive: false });
+
+    document.addEventListener('mouseup', (e) => {
+        if (e.button === 0) {
+            isMouseDown = false;
+            isMoving = false;
+        }
+    });
+    document.addEventListener('touchend', () => {
+        isMouseDown = false;
+        isMoving = false;
+    });
+
+    document.addEventListener('mouseleave', () => {
+        isMouseDown = false;
+        isMoving = false;
+    });
+
+    function spawnParticle(x, y) {
+        let p = document.createElement('div');
+        p.classList.add('particle');
+
+        p.style.left = (x + (Math.random() * 40 - 20)) + 'px';
+        p.style.top = (y + (Math.random() * 40 - 20)) + 'px';
+        document.body.appendChild(p);
+
+        void p.offsetWidth;
+
+        let angle = Math.random() * Math.PI * 2;
+        let dist = 40 + Math.random() * 60;
+        let dx = Math.cos(angle) * dist;
+        let dy = Math.sin(angle) * dist + 80; 
+        let rot = Math.random() * 360;
+
+        p.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
+        p.style.opacity = '0'; 
+
+        setTimeout(() => p.remove(), 600); 
+    }
+
+    let lastTime = performance.now();
+    let particleTimer = 0;
+
+    function gameLoop(time) {
+        if (gameOver) return;
+
+        let dt = time - lastTime;
+        lastTime = time;
+
+        const rect = catImage.getBoundingClientRect();
+        const padding = 50; 
+        const isOverCat = mouseX > rect.left + padding && mouseX < rect.right - padding &&
+                          mouseY > rect.top + padding && mouseY < rect.bottom - padding;
+
+        isBrushing = isMouseDown && isMoving && isOverCat;
+
+        if (isBrushing) {
+            if (brushSound.paused) brushSound.play().catch(() => {}); 
+        } else {
+            if (!brushSound.paused) brushSound.pause();
+        }
+
+        if (isBrushing && isLookingBack && time > graceEndTime) {
+            triggerGameOver();
+            return;
+        }
+
+        let baseRotation = -45; 
+        let yOffset = -30; 
+        let xOffset = -30; 
+        let wiggle = 0;
+
+        if (isMouseDown) {
+            baseRotation = -35;
+            yOffset = -15; 
+        }
+
+        if (isTouchMode) {
+
+            xOffset = 40;
+            yOffset = isMouseDown ? -60 : -70;
+        }
+
+        if (isBrushing) {
+            
+            wiggle = Math.sin(time / 80) * 12;
+
+            score += dt * 0.05; 
+            scoreDisplay.innerText = Math.floor(score);
+
+            particleTimer += dt;
+            if (particleTimer > 60) { 
+                spawnParticle(mouseX, mouseY);
+                particleTimer = 0;
+            }
+        }
+
+        comb.style.left = `${mouseX}px`;
+        comb.style.top = `${mouseY}px`;
+        comb.style.transform = `translate(${xOffset}%, ${yOffset}%) rotate(${baseRotation + wiggle}deg)`;
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    requestAnimationFrame(gameLoop);
+
+    function scheduleNextCatState() {
+        if (gameOver) return;
+
+        if (isLookingBack) {
+            
+            catImage.src = 'spokoyno.png';
+            isLookingBack = false;
+            let safeTime = 1500 + Math.random() * 3000; 
+            setTimeout(scheduleNextCatState, safeTime);
+        } else {
+            
+            catImage.src = '4.png';
+            isLookingBack = true;
+            // Устанавливаем время пощады в 250 миллисекунд (четверть секунды)
+            graceEndTime = performance.now() + 250;
+
+            // Звук поворота играем всегда, так как теперь есть время на спасение
+            turnSound.currentTime = 0;
+            turnSound.play().catch(() => {});
+
+            let dangerTime = 800 + Math.random() * 1500;
+            setTimeout(scheduleNextCatState, dangerTime);
+        }
+    }
+
+    setTimeout(scheduleNextCatState, 2000);
+
+    function triggerGameOver() {
+        gameOver = true;
+        document.body.classList.add('game-over'); 
+        comb.style.display = 'none'; 
+
+        brushSound.pause();
+        scareSound.currentTime = 0;
+        scareSound.play().catch(() => {});
+
+        jumpscareOverlay.style.display = 'flex';
+        jumpscareImg.classList.add('scare-active');
+
+        setTimeout(() => {
+            gameOverText.style.display = 'block';
+            canRestart = true;
+        }, 800);
+    }
+</script>
+</body>
+</html>
