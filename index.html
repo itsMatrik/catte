@@ -60,6 +60,28 @@
             pointer-events: none;
         }
 
+        /* Кнопка переключения скинов */
+        #skin-toggle-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            border: 2px solid #fff;
+            border-radius: 10px;
+            font-family: 'Arial Black', sans-serif;
+            font-size: 1rem;
+            cursor: pointer;
+            z-index: 105;
+            transition: background-color 0.3s;
+            pointer-events: auto; /* Чтобы кнопка нажималась несмотря на настройки body */
+        }
+
+        #skin-toggle-btn:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
         .particle {
             position: absolute;
             width: 6px;
@@ -140,7 +162,6 @@
 
         @media (max-width: 768px) {
             #cat-image {
-
                 max-width: 110vw; 
                 max-height: 100vh; 
             }
@@ -151,17 +172,37 @@
 
 <div id="score-container">0</div>
 
-<img id="cat-image" src="spokoyno.png" alt="Cat" draggable="false">
+<!-- Кнопка смены скина -->
+<button id="skin-toggle-btn">Скины</button>
+
+<!-- По умолчанию загружаем изображения первого (нового) кота -->
+<img id="cat-image" src="cat2sleep.png" alt="Cat" draggable="false">
 <img id="comb" src="photo_2026-04-17_20-16-46.png" alt="Comb" draggable="false">
 
 <div id="jumpscare-overlay">
-    <img id="jumpscare-img" src="scrimac.png" alt="Scare">
+    <img id="jumpscare-img" src="cat2scrimac.png" alt="Scare">
     <div class="blood-vignette"></div>
     <div id="game-over-text">YOU DIED</div>
 </div>
 
 <script>
-    
+    // Массив скинов
+    const skins = [
+        { 
+            name: 'Кот 1', 
+            idle: 'cat2sleep.png', 
+            watch: 'cat2watch.png', 
+            scare: 'cat2scrimac.png' 
+        },
+        { 
+            name: 'Кот 2', 
+            idle: 'spokoyno.png', 
+            watch: '4.png', 
+            scare: 'scrimac.png' 
+        }
+    ];
+    let currentSkinIndex = 0; // 0 - новый кот, 1 - старый кот
+
     let score = 0;
     let isMouseDown = false;
     let isMoving = false;
@@ -182,12 +223,27 @@
     const jumpscareOverlay = document.getElementById('jumpscare-overlay');
     const jumpscareImg = document.getElementById('jumpscare-img');
     const gameOverText = document.getElementById('game-over-text');
+    const skinToggleBtn = document.getElementById('skin-toggle-btn');
 
     const brushSound = new Audio('cloth-grab-fabric-equipment-cloth-equip-grab-alegemaate.mp3');
     brushSound.loop = true; 
 
     const turnSound = new Audio('vine-boom-sound-effect-full.mp3');
     const scareSound = new Audio('five-nights-at-freddys-3-springtraps-jumpscare-brightened.mp3');
+
+    // Логика переключения скинов
+    skinToggleBtn.addEventListener('mousedown', (e) => e.stopPropagation()); // Чтобы клик по кнопке не засчитывался как начало расчесывания
+    skinToggleBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+    skinToggleBtn.addEventListener('click', () => {
+        if (gameOver) return;
+        
+        currentSkinIndex = (currentSkinIndex + 1) % skins.length;
+        skinToggleBtn.innerText = skins[currentSkinIndex].name;
+        
+        // Моментально обновляем картинки на экране
+        catImage.src = isLookingBack ? skins[currentSkinIndex].watch : skins[currentSkinIndex].idle;
+        jumpscareImg.src = skins[currentSkinIndex].scare;
+    });
 
     function handleMove(x, y) {
         mouseX = x;
@@ -302,15 +358,12 @@
         }
 
         if (isTouchMode) {
-
             xOffset = 40;
             yOffset = isMouseDown ? -60 : -70;
         }
 
         if (isBrushing) {
-            
             wiggle = Math.sin(time / 80) * 12;
-
             score += dt * 0.05; 
             scoreDisplay.innerText = Math.floor(score);
 
@@ -334,19 +387,17 @@
         if (gameOver) return;
 
         if (isLookingBack) {
-            
-            catImage.src = 'spokoyno.png';
+            // Возвращаем в спокойное состояние, используя текущий скин
+            catImage.src = skins[currentSkinIndex].idle;
             isLookingBack = false;
             let safeTime = 1500 + Math.random() * 3000; 
             setTimeout(scheduleNextCatState, safeTime);
         } else {
-            
-            catImage.src = '4.png';
+            // Кот поворачивается, используя текущий скин
+            catImage.src = skins[currentSkinIndex].watch;
             isLookingBack = true;
-            // Устанавливаем время пощады в 250 миллисекунд (четверть секунды)
             graceEndTime = performance.now() + 250;
 
-            // Звук поворота играем всегда, так как теперь есть время на спасение
             turnSound.currentTime = 0;
             turnSound.play().catch(() => {});
 
@@ -361,6 +412,7 @@
         gameOver = true;
         document.body.classList.add('game-over'); 
         comb.style.display = 'none'; 
+        skinToggleBtn.style.display = 'none'; // Прячем кнопку при скримере
 
         brushSound.pause();
         scareSound.currentTime = 0;
@@ -372,7 +424,6 @@
         setTimeout(() => {
             gameOverText.style.display = 'block';
             canRestart = true;
-            window.location.href = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
         }, 800);
     }
 </script>
