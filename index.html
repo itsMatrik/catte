@@ -1,3 +1,10 @@
+// Ты часто проходишь мимо, не видя меня
+// С кем-то другим, я стою не дыша
+// Я знаю, что ты живёшь в соседнем дворе
+// Ты идёшь не спеша, не спеша
+// Но это не любовь
+// Не любовь
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -60,7 +67,7 @@
             pointer-events: none;
         }
 
-        /* Кнопка переключения скинов */
+
         #skin-toggle-btn {
             position: absolute;
             bottom: 20px;
@@ -75,7 +82,7 @@
             cursor: pointer;
             z-index: 105;
             transition: background-color 0.3s;
-            pointer-events: auto; /* Чтобы кнопка нажималась несмотря на настройки body */
+            pointer-events: auto; 
         }
 
         #skin-toggle-btn:hover {
@@ -172,10 +179,10 @@
 
 <div id="score-container">0</div>
 
-<!-- Кнопка смены скина -->
+
 <button id="skin-toggle-btn">Скины</button>
 
-<!-- По умолчанию загружаем изображения первого (нового) кота -->
+
 <img id="cat-image" src="cat2sleep.png" alt="Cat" draggable="false">
 <img id="comb" src="photo_2026-04-17_20-16-46.png" alt="Comb" draggable="false">
 
@@ -186,7 +193,7 @@
 </div>
 
 <script>
-    // Массив скинов
+
     const skins = [
         { 
             name: 'Кот 1', 
@@ -201,7 +208,7 @@
             scare: 'scrimac.png' 
         }
     ];
-    let currentSkinIndex = 0; // 0 - новый кот, 1 - старый кот
+    let currentSkinIndex = 0;
 
     let score = 0;
     let isMouseDown = false;
@@ -231,8 +238,7 @@
     const turnSound = new Audio('vine-boom-sound-effect-full.mp3');
     const scareSound = new Audio('five-nights-at-freddys-3-springtraps-jumpscare-brightened.mp3');
 
-    // Логика переключения скинов
-    skinToggleBtn.addEventListener('mousedown', (e) => e.stopPropagation()); // Чтобы клик по кнопке не засчитывался как начало расчесывания
+    skinToggleBtn.addEventListener('mousedown', (e) => e.stopPropagation());
     skinToggleBtn.addEventListener('touchstart', (e) => e.stopPropagation());
     skinToggleBtn.addEventListener('click', () => {
         if (gameOver) return;
@@ -387,13 +393,13 @@
         if (gameOver) return;
 
         if (isLookingBack) {
-            // Возвращаем в спокойное состояние, используя текущий скин
+
             catImage.src = skins[currentSkinIndex].idle;
             isLookingBack = false;
             let safeTime = 1500 + Math.random() * 3000; 
             setTimeout(scheduleNextCatState, safeTime);
         } else {
-            // Кот поворачивается, используя текущий скин
+
             catImage.src = skins[currentSkinIndex].watch;
             isLookingBack = true;
             graceEndTime = performance.now() + 250;
@@ -412,7 +418,7 @@
         gameOver = true;
         document.body.classList.add('game-over'); 
         comb.style.display = 'none'; 
-        skinToggleBtn.style.display = 'none'; // Прячем кнопку при скримере
+        skinToggleBtn.style.display = 'none';
 
         brushSound.pause();
         scareSound.currentTime = 0;
